@@ -1,0 +1,182 @@
+{
+  "name": "(Attach file) 1. Read diff types of files",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        320
+      ],
+      "id": "9bf9c4c9-7b78-4fd0-af53-b7c5026cb6cc",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        120
+      ],
+      "id": "6dd9eee1-0345-4939-ac8f-a72e6c04e7f7",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/*.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "id": "d16560ce-3992-4440-beec-2f143602fdfc",
+      "name": "Read pdf"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        500
+      ],
+      "id": "ab00f70c-dad8-41df-a406-056b0b243c4e",
+      "name": "Extract from txt"
+    },
+    {
+      "parameters": {
+        "content": "### Zeabur 的檔案放在 /data/ 資料夾\n### 如果在 Windows 跑, 本機路徑寫法: C:\\\\\\Users\\\\\\\\ADMIN\\\\\\\\Desktop\\\\\\\\*.pdf",
+        "height": 80,
+        "width": 580
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -500,
+        20
+      ],
+      "typeVersion": 1,
+      "id": "9d4f6f17-0590-463b-94f1-9448ffdb2635",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/*.jpg",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "id": "42c262f5-745c-4602-90cc-4f31a08901a1",
+      "name": "Read img"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ],
+      "id": "73f30350-7365-4a5e-b776-714ef96a4bd6",
+      "name": "Extract from Img"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/*.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        0,
+        500
+      ],
+      "id": "4930a35d-44b0-4c41-adf4-facf89677c36",
+      "name": "Read csv"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read pdf",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read img",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read csv",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read pdf": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read img": {
+      "main": [
+        [
+          {
+            "node": "Extract from Img",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read csv": {
+      "main": [
+        [
+          {
+            "node": "Extract from txt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3d5d3032-1af9-4cbe-8c48-375809f64ae4",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "id": "1ZoWcQzfV16upvob",
+  "tags": []
+}

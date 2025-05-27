@@ -1,0 +1,254 @@
+{
+  "name": "(Latent space) Image and text embedding copy",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        360
+      ],
+      "id": "8b5825b7-dce5-4a4b-ab7c-ad1744e24118",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "content": "## 用 Jina 上的 clip 模型計算 image 與 text 的 embedding vectors",
+        "height": 120,
+        "width": 280
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        860,
+        280
+      ],
+      "typeVersion": 1,
+      "id": "76155b59-06e3-4f5b-85fa-6c18ed9ebc4a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/2.jpg",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        140,
+        360
+      ],
+      "id": "d5a46067-4ff0-43a3-b897-1986211f5b51",
+      "name": "Read img"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.jina.ai/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer jina_"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"model\": \"jina-clip-v2\",\n    \"input\":  [\n        {\"image\": \"{{ $json.img.json.data }}\"},\n        {\"text\": \"{{ $json.text1 }}\"},\n        {\"text\": \"{{ $json.text2 }}\"}\n    ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        440
+      ],
+      "id": "339eaf9e-95e3-456d-96f8-b58cc4a2aa04",
+      "name": "Call Jina to generate embeddings"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "'''\nInput\n{\"image\": \"{{ $json.data }}\"},\n{\"text\": \"......\"},\n{\"text\": \"......\"}\n\noutput\n[\n\"data\": [\n{\n\"index\":0,\n\"embedding\": [vector1]\n},\n{\n\"index\": 1,\n\"embedding\": [vector2]\n}\n...\n]\n'''\n\nimport numpy as np\nfrom itertools import combinations\n\n# 取得 API 回傳的 embedding 向量\nembeddings = items[0][\"json\"][\"data\"]\n\nvectors = []\n\n# 轉成純 Python list\nfor idx in range(len(embeddings)):\n    vec = list(embeddings[idx][\"embedding\"])  # 👈 加上 list()\n    vectors.append(vec)\n\n# 定義 cosine similarity\ndef cosine_similarity(vec1, vec2):\n    vec1 = np.array(vec1)\n    vec2 = np.array(vec2)\n    return float(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))\n\n# 計算每一對向量的相似度\nresults = []\nfor (i1, v1), (i2, v2) in combinations(enumerate(vectors), 2):\n    sim = cosine_similarity(v1, v2)\n    results.append({\n        \"pair\": f\"{i1}-{i2}\",\n        \"similarity\": sim\n    })\n\n# 輸出結果\nreturn results"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        440
+      ],
+      "id": "9666280c-4a4b-43cb-aa18-ad16790b5a66",
+      "name": "計算 embeddings 相似度"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7ee60962-638f-49ff-a3de-5bfcafecf542",
+              "name": "text1",
+              "value": "一位女生站在投影布幕前正在進行簡報中",
+              "type": "string"
+            },
+            {
+              "id": "8d71777b-26bb-4cc5-9c17-be286297b0fb",
+              "name": "text2",
+              "value": "一群人在沙灘上打排球, 太陽高掛天邊, 遠處群山聳立",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        140,
+        580
+      ],
+      "id": "91e29fe2-f209-489e-88c0-e02197a671f2",
+      "name": "輸入 texts"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        440
+      ],
+      "id": "39a955c7-ea2a-42de-8a88-b20d80cdd182",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "img = items[0]\ntext1 = items[1][\"json\"][\"text1\"]\ntext2 = items[1][\"json\"][\"text2\"]\nreturn {\"img\": img,\n        \"text1\": text1,\n        \"text2\": text2}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        440
+      ],
+      "id": "6b154cd3-370a-49a7-aad0-7f862778ed3f",
+      "name": "整理 json"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        320,
+        360
+      ],
+      "id": "49b16764-e4e5-4151-9d42-3b84debea891",
+      "name": "Convert to Base64 string"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read img",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "輸入 texts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read img": {
+      "main": [
+        [
+          {
+            "node": "Convert to Base64 string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Jina to generate embeddings": {
+      "main": [
+        [
+          {
+            "node": "計算 embeddings 相似度",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "輸入 texts": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "整理 json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理 json": {
+      "main": [
+        [
+          {
+            "node": "Call Jina to generate embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Base64 string": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0962893a-d88f-4a9a-97a2-65f58c135b7b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "id": "F6kcVcps60DisnU8",
+  "tags": []
+}

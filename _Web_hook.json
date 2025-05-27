@@ -1,0 +1,188 @@
+{
+  "name": "(Web hook) 1 copy",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={\n  \"text\": \"{{ $json.body.prompt }}\",\n  \"image\": \"{{ $json.image }}\"\n} ",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        420,
+        140
+      ],
+      "id": "928bbfaf-bcac-4846-9cd1-fc4a49873b0e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "123",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        340
+      ],
+      "id": "3e15a27a-2dbe-477b-b848-0957cdf098df",
+      "name": "Window Buffer Memory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        140
+      ],
+      "id": "360f0500-4aa0-461a-9081-935f11b0ff20",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "478866b3-cc8e-4b62-b985-c299c7f585b4",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        140
+      ],
+      "id": "b2835e54-30be-4b23-8900-621896a11c2d",
+      "name": "Webhook",
+      "webhookId": "478866b3-cc8e-4b62-b985-c299c7f585b4"
+    },
+    {
+      "parameters": {
+        "model": "gemma3:27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        140,
+        340
+      ],
+      "id": "dae384b6-deff-4599-be22-a4063056b91c",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "9IEwoUHReN06saZF",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        340,
+        340
+      ],
+      "id": "1f8c72bb-a10e-4807-9876-7c060fc0670b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "6QMkj21UnAeMX74c",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 目前用 websim 的 \"上傳 prompt+image 給 n8n\" project連接此 n8n workflow",
+        "height": 100,
+        "width": 600
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        -20
+      ],
+      "typeVersion": 1,
+      "id": "3aad88cc-746b-47cf-b9f9-87e728d96aa1",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c8ebb77f-0cea-4051-8650-25b21e4e108b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "id": "VyP4kMKM5D0qr1sY",
+  "tags": []
+}

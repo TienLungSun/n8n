@@ -1,0 +1,267 @@
+{
+  "name": "(Attach file) 2. Prompt + files",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        300
+      ],
+      "id": "b62f6e36-63ee-4d59-899f-13f97fdfdc8d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "111"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        540
+      ],
+      "id": "28afd80e-c0c4-4d12-b751-497d3f632800",
+      "name": "Window Buffer Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        540
+      ],
+      "id": "29200157-970b-4976-8deb-e8cb7c83245b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "6QMkj21UnAeMX74c",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        380
+      ],
+      "id": "c0c13d98-4035-4eb2-9def-1f4ceea16afa",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5bd13c67-6b23-48fd-97fd-cd5501793afa",
+              "name": "prompt",
+              "value": "3/12 演講題目跟講者是誰?  4/9 演講題目跟講者是誰?  5/1 活動是甚麼?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        100,
+        420
+      ],
+      "id": "c1388120-fdc3-4c88-a413-b0ac9ffeac51",
+      "name": "user prompt"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "#input 1 為 text\ntext = items[0]['json'][\"text\"]\ntext = text.replace('\\n', '  ')  # 移除換行符 ('\\n')\n\n#input 2 為 prompt\nprompt = items[1]['json'][\"prompt\"]\n\nresult = \"請依據這個背景知識 \" + \"\\\"\" + text + \"\\\"\" + \"用繁體中文回答使用者的問題\" + \"\\\"\" + prompt + \"\\\"\"\n\nreturn {\"prompt\": result }"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        320
+      ],
+      "id": "27d8d33c-73f2-48c3-ac6e-44f82fa2a6f6",
+      "name": "結合 text 與 embedding vec"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        500,
+        320
+      ],
+      "id": "827b26bd-a33e-4622-b8a2-3784f93dfc7d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "content": "## Zeabur 的檔案放在 /data/ 資料夾\n## 如果在 Windows 跑, 本機路徑寫法: C:\\\\\\Users\\\\\\\\ADMIN\\\\\\\\Desktop\\\\\\\\*.pdf\n\n## Read files from Disk  ==> Extract from File 的選項, 可參考: (Introduction) Read diff types of files\nRead files from Disk 讀pdf 時, Extract from File 選 pdf\nRead files from Disk 讀 csv 時, Extract from File 選 text\nRead files from Disk 讀 jpg 時, Extract from File 選 Move File to Base64 string",
+        "height": 220,
+        "width": 1180
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -20,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "d49bd74d-25e5-413a-8c11-05639167bfbe",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        300,
+        220
+      ],
+      "id": "5e0d2a0e-7962-4273-a85d-defb59a9ff10",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/*.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        100,
+        220
+      ],
+      "id": "1347dc78-8cce-492c-9d6e-faa3b86d614f",
+      "name": "Read Files from Disk"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read Files from Disk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "user prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "user prompt": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "結合 text 與 embedding vec": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "結合 text 與 embedding vec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "84d3eab9-8e38-48cb-bea6-32c0d103feff",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "id": "8lNxrob3SyCLgyT5",
+  "tags": []
+}

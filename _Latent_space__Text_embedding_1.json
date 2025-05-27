@@ -1,0 +1,135 @@
+{
+  "name": "(Latent space) Text embedding 1 copy",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "text",
+              "value": "學號: 1131520 姓名: 陳羿均 服務學習名稱: 欣銓科技半導體書院-半導體講座"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        340,
+        380
+      ],
+      "id": "78a08b21-414c-4d33-838d-09a98ed06056"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://localhost:11434/api/embed",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n    \"model\": \"chevalblanc/acge_text_embedding:latest\",\n    \"input\": \"{{ $json.text }}\"\n}\n"
+      },
+      "name": "Call Ollama Embedding API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        620,
+        480
+      ],
+      "id": "3e86cf84-ef86-4096-8811-fd39f4367937"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        140,
+        380
+      ],
+      "id": "eca566e4-2918-4669-8f89-edcf13c0e0f5",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer "
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\":  \"text-embedding-3-small\",\n  \"input\": \"{{ $json.text }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        240
+      ],
+      "id": "a7d3a7a6-961a-459c-821a-b72a337a8b96",
+      "name": "Call OpenAI embeddimg model"
+    },
+    {
+      "parameters": {
+        "content": "## ChatGPT 問: \n## 專注在中文、適合高效語意匹配、相似度比對的 text embedding 模型, 說明支援的輸入文字長度\n## 那些模型是免費使用?\n## 可以透過 n8n http request 節點使用 ... 模型\n## 請問 ollama 是否支援 ... 模型\n\n\n",
+        "height": 200,
+        "width": 940
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        -20
+      ],
+      "typeVersion": 1,
+      "id": "ee33f40d-5d49-4ce2-9959-1e1ada15e2ed",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Set Text": {
+      "main": [
+        [
+          {
+            "node": "Call OpenAI embeddimg model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8ef3c3c2-951d-403d-8c46-ef6e08d2d457",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "id": "Be29lO9Ll7df6xZb",
+  "tags": []
+}

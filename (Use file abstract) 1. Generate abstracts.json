@@ -1,0 +1,314 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        280
+      ],
+      "id": "1e613ff1-30ea-4991-9d0d-3adf54fe89ef",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/data/長照法規/長照法規檔案摘要.json",
+        "dataPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        180
+      ],
+      "id": "9007f9f0-673b-44c1-a535-ac62a86e3404",
+      "name": "Write Files to Disk"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2540,
+        180
+      ],
+      "id": "45d71533-490d-4df3-92a6-a4908b023196",
+      "name": "Convert to json File"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/長照法規/*.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        900,
+        180
+      ],
+      "id": "fd7c6e91-999a-4094-bb13-2d55b20117f2",
+      "name": "Read pdf"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1540,
+        280
+      ],
+      "id": "31bf4fa9-296c-45a7-b8c7-cb416e7876c3",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "output = []\nfor item in items: \n  abstract = item[\"json\"][\"output\"]\n  abstract = abstract.replace('\\n', '')  # 移除換行符 ('\\n')\n  output.append({\n        \"json\": {\n            \"abstract\": abstract\n        }\n    })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        280
+      ],
+      "id": "e36e3f3c-f83b-4d7d-9f6a-3efc9f3ad8fc",
+      "name": "整理摘要, 移除 '\\n'"
+    },
+    {
+      "parameters": {
+        "model": "gemma3:27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        500
+      ],
+      "id": "18243e60-14c1-438d-a7ed-2381c252a375",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "9IEwoUHReN06saZF",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        680,
+        180
+      ],
+      "id": "13c18c1d-1542-45a6-a630-ab4f391d115a",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "output = []\nfor item in items: \n    text = item['json'][\"text\"]\n    text = text.replace('\\n', '  ')  # 移除換行符 ('\\n')\n    text = text.replace('\\\"', '  ')  # 移除\" ('\\\"') 否則進LLM會報錯\n    prompt = \"你是長照法規的專家,幫我讀這個長照法規的文章,整理成 500 字的繁體中文摘要, 條列說明各種服務項目的規定需求,如果文章是文字表格, 請讀取表格攔(column)與列(row)的關係, 通常攔為機構類別, 列為服務項目類別, 內容則為特定機構的特定服務項目的法規規範:\" + text\n    output.append({\n        \"json\": {\n            \"prompt\": prompt\n        }\n    })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        280
+      ],
+      "id": "e9991ac2-6f1d-41e6-bbb0-fca329fb2a60",
+      "name": "組成 prompt"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2100,
+        180
+      ],
+      "id": "210eee59-4095-46c9-9b2d-3ba85c2c8fb9",
+      "name": "Merge metadata 與摘要"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "total_items = len(items)\n#merge 時 filename 是 input1, 摘要是 input2\n# 檢查是否為2的倍數\nif total_items % 2 != 0:\n    raise ValueError(\"items 數量必須是2的倍數，才能一一對應\")\n  \noutput = []\npartition = total_items // 2\nfor idx in range(partition):\n  fileName = items[idx]['json']['fileName']\n  abstract = items[idx+partition][\"json\"][\"abstract\"]\n  output.append({'json':{\n      \"fileName\": fileName,\n      \"abstract\": abstract,\n    }\n  })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        180
+      ],
+      "id": "8f8c8e49-fee3-4c32-a4f6-dbf2c72b2d0c",
+      "name": "結合 metadata 與摘要"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "output = []\nfor item in items: \n    directory = item[\"json\"][\"directory\"]\n    fileName = item['json'][\"fileName\"]\n    fileSize = item[\"json\"][\"fileSize\"]\n    output.append({\n        \"json\": {\n            \"fileName\": fileName,\n            \"directory\": directory,\n            \"fileSize\": fileSize\n        }\n    })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        100
+      ],
+      "id": "68b7533e-d5c5-4fd2-b4ce-4eb6ba895113",
+      "name": "讀 file name"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "組成 prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to json File": {
+      "main": [
+        [
+          {
+            "node": "Write Files to Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read pdf": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "讀 file name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "整理摘要, 移除 '\\n'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理摘要, 移除 '\\n'": {
+      "main": [
+        [
+          {
+            "node": "Merge metadata 與摘要",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "組成 prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge metadata 與摘要": {
+      "main": [
+        [
+          {
+            "node": "結合 metadata 與摘要",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "結合 metadata 與摘要": {
+      "main": [
+        [
+          {
+            "node": "Convert to json File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "讀 file name": {
+      "main": [
+        [
+          {
+            "node": "Merge metadata 與摘要",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "tags": []
+}

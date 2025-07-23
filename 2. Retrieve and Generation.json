@@ -1,0 +1,385 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "fileSelector": "/data/長照法規/長照法規.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        180
+      ],
+      "id": "e4fbe349-0303-4f25-8da2-3cb9a4b1e885",
+      "name": "Read DB"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        180
+      ],
+      "id": "b10545d9-f466-45b8-89e1-5bd5b2a9621b",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://   /api/embed",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n    \"model\": \"chevalblanc/acge_text_embedding:latest\",\n    \"input\": \"{{ $json.chatInput }}\"\n}\n"
+      },
+      "name": "Prompt embedding vector",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        440
+      ],
+      "id": "d43da938-b14d-4651-a5aa-bc8775313430"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1960,
+        420
+      ],
+      "id": "f76a9635-1089-4674-afbc-25830932f2e8",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import numpy as np\nfrom sklearn.metrics.pairwise import cosine_similarity\n\n#prompt 的 embedding vector 是 last item\nif(items[-1]['json']['text'] != 'prompt'):\n    raise ValueError(\"embedding vector 應該是第一個!\")\nelse:\n    v = items[-1]['json']['embeddings']\n    promptv = np.array(v.to_py())\n    new_items = items[:-1] #剩下的都是 chuncked texts \n    \nout = [] \nfor item in new_items:\n    fileName = item['json']['fileName']\n    chunk_index = item['json']['chunk_index']\n    total_chunks = item['json']['total_chunks']\n    text = item['json']['text']\n    v = item['json']['embeddings']\n    v = np.array(v.to_py())\n    sim = float(cosine_similarity(promptv, v))\n    out.append({'json': {\n          \"fileName\": fileName,\n          \"chunk_index\": chunk_index,\n          \"total_chunks\": total_chunks,\n          \"text\": text,\n          \"similarity\": round(sim, 4)\n          }\n        })\nsorted_out = sorted(out, key=lambda x: x[\"json\"][\"similarity\"], reverse=True) #依據 similarity 由大到小排序\nreturn sorted_out[:5]  #前 k 個最相似的 text chunks"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2140,
+        420
+      ],
+      "id": "7ed428e9-418e-4772-8140-8d5fca342231",
+      "name": "計算 text 與 prompt 相似度, 並排序"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json; // Assuming your JSON structure is the main output\n\n// Convert the JavaScript object to a JSON string\nconst jsonString = JSON.stringify(inputData);\n\n// Return the JSON string as a new property in the output item\nreturn [\n  {\n    json: {\n      json_string: jsonString\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        180
+      ],
+      "id": "37c9b107-fd14-4281-b70e-4bc584c22f5a",
+      "name": "convert JS object into JSON string1"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\n\njson_string = items[0][\"json\"][\"json_string\"]\n\ndata = json.loads(json_string)\nextracted_data = []\n\n# Access the first (and only) dictionary in the outer list\nouter_dict = data\n\n# Access the list of dictionaries under the \"data\" key\ndata_list = outer_dict.get(\"data\", [])\n\n# Iterate through the list and extract \"text\" and \"embeddings\"\nfor item in data_list:\n    fileName = item.get(\"fileName\")\n    chunk_index = item.get(\"chunk_index\")\n    total_chunks = item.get(\"total_chunks\")\n    text = item.get(\"text\")\n    embeddings = item.get(\"embeddings\")\n    extracted_data.append({\n      \"fileName\": fileName,\n      \"chunk_index\": chunk_index,\n      \"total_chunks\": total_chunks,\n      \"text\": text, \n      \"embeddings\": embeddings\n    })\nreturn extracted_data"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        180
+      ],
+      "id": "ccbafa5e-622c-4d6c-8a98-17b78b1602fb",
+      "name": "改 json format"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "out = []\nv = items[0]['json']['embeddings']\nout.append({\"text\": \"prompt\", \"embeddings\": v})\nreturn out"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        440
+      ],
+      "id": "57c28e1e-593e-4978-9d00-2dead82214cc",
+      "name": "改 json format1"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# prompt 是 last item\nuser_prompt = items[-1][\"json\"][\"chatInput\"]\nremaining_items = items[:-1]\n\ninfo = \"\"\nreference = \"\"\nfor item in remaining_items:\n  fileName = item['json'][\"fileName\"]\n  chunk_index = item['json'][\"chunk_index\"]\n  total_chunks = item['json'][\"total_chunks\"]\n  text = item['json'][\"text\"]\n  text = text.replace('\\n', '  ')  # 移除換行符 ('\\n')\n  text = text.replace('\\\"', '  ')  # 移除\" ('\\\"') 否則進LLM會報錯\n  info = info + text + \"  ,\"\n  reference = reference + fileName + \" chunk: \" + str(chunk_index) + \"/\" + str(total_chunks) + \", \"\n\nprompt = \"請依據以下背景知識: \" + info + \", 用繁體中文 200 字回答使用者的問題, \" + user_prompt\n\nresult = {\n  \"prompt\": prompt,\n  \"reference\": reference}\nreturn result"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2620,
+        560
+      ],
+      "id": "4bfbee1e-f083-44ef-bf30-20fbcecfe38a",
+      "name": "結合 prompt 與背景知識"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2420,
+        560
+      ],
+      "id": "ea56ff73-3947-4a7b-a0fd-a87f0e39789d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        2840,
+        560
+      ],
+      "id": "2bff51e1-2115-4fbf-9606-b52400da2856",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "gemma3:27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2840,
+        760
+      ],
+      "id": "1df663dc-6ddd-41db-8c8e-faf6a5df495b",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "9IEwoUHReN06saZF",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        580
+      ],
+      "id": "89f9583c-76e7-454e-b3e9-1fa586ae8ddd",
+      "name": "When chat message received",
+      "webhookId": "898a3c6d-cf87-45cd-b75d-3234f4a9371a"
+    },
+    {
+      "parameters": {
+        "content": "## 讀取 chunked texts + embedding vectors",
+        "height": 280,
+        "width": 820
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1120,
+        100
+      ],
+      "typeVersion": 1,
+      "id": "32f0d59a-719e-4bcb-9a57-4affe9699dc9",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "html",
+        "binaryPropertyName": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3200,
+        560
+      ],
+      "id": "dcfbefc9-e0f4-4ee8-a55b-308815f7e699",
+      "name": "Convert to File"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Read DB": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "convert JS object into JSON string1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt embedding vector": {
+      "main": [
+        [
+          {
+            "node": "改 json format1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "計算 text 與 prompt 相似度, 並排序",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "計算 text 與 prompt 相似度, 並排序": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "convert JS object into JSON string1": {
+      "main": [
+        [
+          {
+            "node": "改 json format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "改 json format": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "改 json format1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "結合 prompt 與背景知識": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "結合 prompt 與背景知識",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Prompt embedding vector",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "tags": []
+}

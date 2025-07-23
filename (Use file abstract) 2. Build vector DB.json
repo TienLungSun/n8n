@@ -1,0 +1,274 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        100
+      ],
+      "id": "a8bb978a-8adb-48e4-9eb0-b19a54c16674",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        100
+      ],
+      "id": "cfa85168-82f6-452d-aabf-4aea043af627",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/data/長照法規/長照法規1.json",
+        "dataPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        3060,
+        120
+      ],
+      "id": "0ff35cf5-9005-49d2-b30b-304576618b91",
+      "name": "Write Files to Disk"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        120
+      ],
+      "id": "5dd92e4f-5318-4a9a-9975-72def977504f",
+      "name": "Convert to json File"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "total_items = len(items)\n#input1 = (file name + 摘要)\n#input2 = 摘要 embeddings\n# 檢查是否為2的倍數\nif total_items % 2 != 0:\n    raise ValueError(\"items 數量必須是3的倍數，才能一一對應\")\n  \noutput = []\npartition = total_items // 2\nfor idx in range(partition):\n  fileName = items[idx]['json']['fileName']\n  abstract = items[idx][\"json\"][\"abstract\"]\n  embedding = items[idx+partition][\"json\"][\"embedding\"]\n  output.append({'json':{\n      \"fileName\": fileName,\n      \"abstract\": abstract,\n      \"embedding\": embedding,\n    }\n  })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        120
+      ],
+      "id": "88d31ca9-6208-417b-89f8-4c956e09ba39",
+      "name": "metadata +摘要+embedding vectors"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2460,
+        120
+      ],
+      "id": "d5e02466-deab-4797-871d-9d921359dd43",
+      "name": "Merge embedding vectors"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer "
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\":  \"text-embedding-3-small\",\n  \"input\": \"{{ $json.abstract }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        200
+      ],
+      "id": "1781a400-cf07-4cd6-a9d3-18fb88badfa2",
+      "name": "Call OpenAI embeddimg model"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "new_items = items[0]['json']['data']\noutput = []\nfor item in new_items:\n  fileName = item['fileName']\n  abstract = item[\"abstract\"]\n  output.append({'json':{\n      \"fileName\": fileName,\n      \"abstract\": abstract,\n    }\n  })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        100
+      ],
+      "id": "2d496b19-ac50-4860-9a1e-eed528c286bf",
+      "name": "整理 Json"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "output = []\nfor item in items: \n  embedding = item['json']['data'][0][\"embedding\"]\n  output.append({\n        \"json\": {\n            \"embedding\": embedding\n        }\n    })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ],
+      "id": "1d278eba-f7a2-4433-8755-00cd76aef777",
+      "name": "整理 Json1"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/長照法規/長照法規檔案摘要.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        100
+      ],
+      "id": "6b786c7a-83a8-4682-9ecd-b61931f64ff3",
+      "name": "Read 摘要 json"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read 摘要 json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "整理 Json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to json File": {
+      "main": [
+        [
+          {
+            "node": "Write Files to Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "metadata +摘要+embedding vectors": {
+      "main": [
+        [
+          {
+            "node": "Convert to json File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge embedding vectors": {
+      "main": [
+        [
+          {
+            "node": "metadata +摘要+embedding vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenAI embeddimg model": {
+      "main": [
+        [
+          {
+            "node": "整理 Json1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理 Json": {
+      "main": [
+        [
+          {
+            "node": "Call OpenAI embeddimg model",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge embedding vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理 Json1": {
+      "main": [
+        [
+          {
+            "node": "Merge embedding vectors",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Read 摘要 json": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "tags": []
+}

@@ -1,0 +1,510 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "fileSelector": "/data/長照法規/長照法規1.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        200
+      ],
+      "id": "25619dcc-68e6-4ca3-aad6-dbb52ccbc1b9",
+      "name": "Read DB"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        200
+      ],
+      "id": "f1f33b49-909c-4f35-a43a-f3ed05cb1000",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json; // Assuming your JSON structure is the main output\n\n// Convert the JavaScript object to a JSON string\nconst jsonString = JSON.stringify(inputData);\n\n// Return the JSON string as a new property in the output item\nreturn [\n  {\n    json: {\n      json_string: jsonString\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        200
+      ],
+      "id": "4db4b73c-bbc6-4a85-98cb-89823b5159ae",
+      "name": "convert JS object into JSON string"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\n\njson_string = items[0][\"json\"][\"json_string\"]\n\ndata = json.loads(json_string)\nextracted_data = []\n\n# Access the first (and only) dictionary in the outer list\nouter_dict = data\n\n# Access the list of dictionaries under the \"data\" key\ndata_list = outer_dict.get(\"data\", [])\n\nfor item in data_list:\n    fileName = item.get(\"fileName\")\n    abstract = item.get(\"abstract\")\n    #abstract = abstract[:10] #debug 用, 方便觀察\n    embedding = item.get(\"embedding\")\n    #embedding = embedding[:10] #debug 用, 方便觀察\n    extracted_data.append(\n      {\"fileName\": fileName,\n       \"abstract\": abstract,\n       \"embedding\": embedding})\nreturn extracted_data"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        200
+      ],
+      "id": "30df4065-34bd-4698-a965-e8bf136cd9f3",
+      "name": "改 json format2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.filePath }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2520,
+        420
+      ],
+      "id": "ad5385ae-2a81-42d3-93b4-0568babb6b89",
+      "name": "Read documents"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        2700,
+        420
+      ],
+      "id": "96966972-b5f8-4d19-8b8e-c945cc56cbdf",
+      "name": "Extract texts from File"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# prompt 是 last itmes, 背景知識的檔案是 input1\nuser_prompt = items[-1][\"json\"][\"chatInput\"]\nremaining_items = items[:-1]\n\ninfo = \"\"\nfor item in remaining_items:\n  text = item['json'][\"text\"]\n  text = text.replace('\\n', '  ')  # 移除換行符 ('\\n')\n  text = text.replace('\\\"', '  ')  # 移除\" ('\\\"') 否則進LLM會報錯\n  info = info + text + \"  ,\"\n\nprompt = '''\n你是一位專精於臺灣長照法規的專家。請根據以下 **「背景知識」**，使用繁體中文回答使用者的問題。\n* 背景知識為與長照相關的法規條文，內容說明各項服務項目的規定與需求。\n* 若背景知識包含文字格式的表格，請正確解析表格的欄（column）與列（row）結構：\n  * **欄（column）** 通常代表「機構類別」\n  * **列（row）** 通常代表「服務項目類別」\n  * **欄與列交會的儲存格內容** 為該機構提供該服務項目的具體法規規範。\n* 回答時請清楚說明法規依據與其適用對象，若有必要可整理成條列式說明。\n\n---\n\n**背景知識：**\n'''\n\nprompt = prompt + \"{{\" + info + \"}}\"\n\nprompt = prompt + ''' \n\n**使用者的問題：**\n{{'''\n\nprompt = prompt + user_prompt + '''\n\n}}\n---\n'''\n \n\nreturn {\"prompt\": prompt }"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3140,
+        560
+      ],
+      "id": "5fddac3c-e178-4331-a37f-1b426fe00eac",
+      "name": "結合 prompt 與背景知識"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2940,
+        560
+      ],
+      "id": "06bc3620-e000-4f72-97d6-622498b9a10e",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "html",
+        "binaryPropertyName": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3720,
+        560
+      ],
+      "id": "dbf97c35-e68c-4e87-b212-a281517b48e8",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        580
+      ],
+      "id": "d0373199-8511-4a4c-9c91-3caadf33aca0",
+      "name": "When chat message received",
+      "webhookId": "898a3c6d-cf87-45cd-b75d-3234f4a9371a"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1940,
+        420
+      ],
+      "id": "5b26134b-60d1-4612-b194-1ea06fab5848",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import numpy as np\nfrom numpy.linalg import norm\n\ndef calculate_cosine_similarity(vec1, vec2):\n    dot_product = np.dot(vec1, vec2)\n    norm_vec1 = np.linalg.norm(vec1)\n    norm_vec2 = np.linalg.norm(vec2)\n  \n    if norm_vec1 == 0 or norm_vec2 == 0:\n        return 0\n    \n    cosine_sim = dot_product / (norm_vec1 * norm_vec2)\n    return cosine_sim\n\n#prompt 的 embedding vector 是 last item\nif(items[-1]['json']['text'] != 'prompt'):\n  raise ValueError(\"embedding vector 應該是 last item!\")\nelse:\n  prompt_embedding = items[-1]['json']['embedding']\n  new_items = items[:-1] #剩下的都是KB \n  \nout = [] \nfor idx in range(len(new_items)):\n    fileName = new_items[idx]['json']['fileName']\n    embedding = new_items[idx]['json']['embedding']\n    sim = calculate_cosine_similarity(prompt_embedding, embedding)\n    out.append({'json': {\n          \"fileName\": fileName,\n          \"similarity\": round(sim, 4)}\n        })\nsorted_out = sorted(out, key=lambda x: x[\"json\"][\"similarity\"], reverse=True) #依據 similarity 由大到小排序\nreturn sorted_out"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2140,
+        420
+      ],
+      "id": "84866293-7c74-4dd9-9a78-84a3cd7f90cf",
+      "name": "計算 file abstract 與 prompt 相似度並排序"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        3340,
+        560
+      ],
+      "id": "73dd2196-3c47-4e93-910a-d032870359a7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "fileName1 = items[0][\"json\"][\"fileName\"]\nfileName2 = items[1][\"json\"][\"fileName\"]\npath = \"/data/長照法規/\" \nreturn [\n  {\n     \"filePath\": path+fileName1\n  },\n  {\n     \"filePath\": path+fileName2\n  }\n]\n\n{\"fileNames\": fileNames }"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        420
+      ],
+      "id": "4e196f12-ee03-4e33-b4cc-b9c807ad44fc",
+      "name": "Get file names"
+    },
+    {
+      "parameters": {
+        "content": "# 比較摘要的語意相似度, 讀取相似度高的檔案全文",
+        "height": 300,
+        "width": 760,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2080,
+        280
+      ],
+      "typeVersion": 1,
+      "id": "e68d338e-a90f-487a-a123-66252626f865",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# prompt + files 送LLM",
+        "height": 280,
+        "width": 800,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2880,
+        460
+      ],
+      "typeVersion": 1,
+      "id": "46fa992b-8ad3-4483-b044-21dabbb9e620",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "# 讀取 abstract + embedding vectors",
+        "height": 280,
+        "width": 760
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1120,
+        100
+      ],
+      "typeVersion": 1,
+      "id": "9214659b-064b-4d0a-b3df-44a88ac4dfd1",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer "
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\":  \"text-embedding-3-small\",\n  \"input\": \"{{ $json.chatInput }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        440
+      ],
+      "id": "0853df9a-9ffa-4de9-91b1-c6990ae587b2",
+      "name": "Call OpenAI embeddimg model"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "output = []\nfor item in items: \n  embedding = item['json']['data'][0][\"embedding\"]\n  #embedding = embedding[:10] #debug 用,方便觀察\n  output.append({\n        \"json\": {\n            \"text\": \"prompt\",\n            \"embedding\": embedding\n        }\n    })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        440
+      ],
+      "id": "655a2fd8-5390-4834-9eb2-fba360dd0510",
+      "name": "整理 Json1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3340,
+        800
+      ],
+      "id": "6ed14e69-d08e-4163-838f-4ad307b316a7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "6QMkj21UnAeMX74c",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Read DB": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "convert JS object into JSON string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "convert JS object into JSON string": {
+      "main": [
+        [
+          {
+            "node": "改 json format2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "改 json format2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read documents": {
+      "main": [
+        [
+          {
+            "node": "Extract texts from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract texts from File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "結合 prompt 與背景知識": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "結合 prompt 與背景知識",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Read DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Call OpenAI embeddimg model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "計算 file abstract 與 prompt 相似度並排序",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "計算 file abstract 與 prompt 相似度並排序": {
+      "main": [
+        [
+          {
+            "node": "Get file names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get file names": {
+      "main": [
+        [
+          {
+            "node": "Read documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenAI embeddimg model": {
+      "main": [
+        [
+          {
+            "node": "整理 Json1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理 Json1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "tags": []
+}

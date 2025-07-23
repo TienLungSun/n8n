@@ -1,0 +1,312 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        120
+      ],
+      "id": "131df4f7-e4cb-4c50-971b-c4d824305d75",
+      "name": "When clicking 'Test workflow'"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/data/長照法規/*.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        120
+      ],
+      "id": "8ade2e00-38f4-45ae-b073-35e8e836cf8c",
+      "name": "Read documents"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ],
+      "id": "c6f58c30-33ef-42e8-8ca1-981ad117e4ba",
+      "name": "Extract texts from File"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "total_items = len(items)\noutput = []\nfor idx in range(total_items):\n  fileName = items[idx][\"json\"][\"fileName\"]\n  input_text = items[idx]['json'][\"text\"]\n  text_len = len(input_text)\n  chunk_size = 1000\n  overlap = 300\n\n  #先跑一個簡單迴圈計算 total chunks, 我懶得用公式算\n  total_chunks = 0\n  chunk_index = 0\n  i=0\n  while (i<text_len):\n    chunk_index = chunk_index + 1\n    if(i+chunk_size>text_len): #last chunk\n      last_chunk=True\n      total_chunks = chunk_index\n      break\n    else:\n      i = i + chunk_size - overlap\n\n  #開始 chunk loop\n  chunk_index = 0\n  i=0\n  last_chunk=False\n  while (i<text_len):\n    chunk_index = chunk_index + 1\n    if(i+chunk_size>text_len): #last chunk\n      last_chunk=True\n      chunk = input_text[i:text_len]\n    else: #not last chunk\n      chunk = input_text[i:i + chunk_size]\n    chunk = chunk.replace('\\n', '')  # 移除換行符 ('\\n')\n    #chunk = chunk[:10] #方便觀察, debug 用\n    output.append({\n          \"json\": {\n              \"fileName\": fileName,\n              \"text\": chunk,\n              \"chunk_index\": chunk_index,\n              \"total_chunks\": total_chunks\n          }\n    })\n    if(last_chunk):\n      break\n    else:\n      i = i + chunk_size - overlap\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        120
+      ],
+      "id": "b51ebd97-2be2-4366-b9ad-7c93c691bc8c",
+      "name": "Chunk texts"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/data/長照法規/長照法規.json",
+        "dataPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        140
+      ],
+      "id": "3dc3a9b7-0ac9-4fc3-8f9c-8d323109c19e",
+      "name": "Write Files to Disk"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1380,
+        140
+      ],
+      "id": "8069eeb5-39dd-45ed-9ae2-91a0fb6b9228",
+      "name": "Convert to json File"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "total_items = len(items)\n# 檢查是否為偶數\nif total_items % 2 != 0:\n    raise ValueError(\"items 數量必須是偶數，才能一一對應\")\n  \n#merge 時 input1=file name+chunked texts, input2=embeddings \noutput = []\nhalf = total_items // 2\nfor idx in range(half):\n  fileName = items[idx]['json']['fileName']\n  chunk_index= items[idx]['json']['chunk_index']\n  total_chunks= items[idx]['json']['total_chunks']\n  text = items[idx][\"json\"]['text']\n  embeddings = items[idx+half][\"json\"][\"embeddings\"]\n  #embeddings = embeddings[0][:5] #縮短向量長度,方便觀察debug\n  output.append({'json':{\n      \"fileName\": fileName,\n      \"chunk_index\": chunk_index,\n      \"total_chunks\": total_chunks,\n      \"text\": text,\n      \"embeddings\": embeddings\n    }\n  })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        140
+      ],
+      "id": "ca916b67-2f49-4241-a733-129879282d8f",
+      "name": "合併 text 與 embedding vec1"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "output = []\nfor item in items: \n    directory = item[\"json\"][\"directory\"]\n    fileName = item['json'][\"fileName\"]\n    fileSize = item[\"json\"][\"fileSize\"]\n    output.append({\n        \"json\": {\n            \"fileName\": fileName,\n            \"directory\": directory,\n            \"fileSize\": fileSize\n        }\n    })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0ea3b639-50ba-45ff-a4f2-700d2c5a8322",
+      "name": "Read file name"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        220,
+        120
+      ],
+      "id": "15edec96-e381-436d-9d2a-ed2a9d49d484",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "total_items = len(items)\n# 檢查是否為偶數\nif total_items % 2 != 0:\n    raise ValueError(\"items 數量必須是偶數，才能一一對應\")\n  \n#merge 時 input1 = filename, input2 = text \noutput = []\nhalf = total_items // 2\nfor idx in range(half):\n  output.append({'json':{\n      \"fileName\": items[idx]['json']['fileName'],\n      \"text\": items[idx+half]['json']['text']\n    }\n  })\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ],
+      "id": "fb474bd0-98bb-4256-bd9c-fadb41f15932",
+      "name": "Merge file name and text"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        980,
+        140
+      ],
+      "id": "3c4e743a-210a-4d1c-84a2-4abb2e829a14",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://     /api/embed",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n    \"model\": \"chevalblanc/acge_text_embedding:latest\",\n    \"input\": \"{{ $json.text }}\"\n}\n"
+      },
+      "name": "Call embedding model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        820,
+        260
+      ],
+      "id": "91a8e9ed-79d0-4e3c-bb7e-5dad2a085f7d"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Read documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read documents": {
+      "main": [
+        [
+          {
+            "node": "Extract texts from File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read file name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract texts from File": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Chunk texts": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call embedding model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to json File": {
+      "main": [
+        [
+          {
+            "node": "Write Files to Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "合併 text 與 embedding vec1": {
+      "main": [
+        [
+          {
+            "node": "Convert to json File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read file name": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Merge file name and text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge file name and text": {
+      "main": [
+        [
+          {
+            "node": "Chunk texts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "合併 text 與 embedding vec1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call embedding model": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "dc4d2ffaadbec050bef7ceddb84adaae0e987f159eb5cf6859d0d0e50935d512"
+  },
+  "tags": []
+}
